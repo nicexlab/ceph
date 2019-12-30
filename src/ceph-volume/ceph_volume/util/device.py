@@ -241,14 +241,7 @@ class Device(object):
                     # a pv can only be in one vg, so this should be safe
                     self.vg_name = has_vgs[0]
                     self._is_lvm_member = True
-                    self.pvs_api = pvs
-                    for pv in pvs:
-                        if pv.vg_name and pv.lv_uuid:
-                            lv = lvm.get_lv(vg_name=pv.vg_name, lv_uuid=pv.lv_uuid)
-                            if lv:
-                                self.lvs.append(lv)
-                else:
-                    self.vgs = []
+                    self.lvs.extend(lvm.get_device_lvs(path))
         return self._is_lvm_member
 
     def _get_pv_paths(self):
