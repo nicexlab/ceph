@@ -161,7 +161,9 @@ class TestMixedType(object):
         conf_ceph(get_safe=lambda *a: '5120')
         args = factory(filtered_devices=[], osds_per_device=1, journal_size=None)
         devices = [ssd, hdd]
-        result = filestore.MixedType(devices, args).computed['osds'][0]
+
+        result = filestore.MixedType.with_auto_devices(args, devices).\
+            computed['osds'][0]
         assert result['journal']['path'] == 'vg: fast'
         assert result['journal']['percentage'] == 71
         assert result['journal']['human_readable_size'] == '5.00 GB'
@@ -190,8 +192,10 @@ class TestMixedType(object):
         ])
 
         conf_ceph(get_safe=lambda *a: '5120')
-        args = factory(filtered_devices=[], osds_per_device=1, journal_size=None)
+        args = factory(filtered_devices=[], osds_per_device=1, osd_ids=[],
+                       journal_size=None)
         devices = [ssd1, ssd2, hdd]
+
         with pytest.raises(RuntimeError) as error:
             filestore.MixedType(devices, args)
 

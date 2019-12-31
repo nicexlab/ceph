@@ -124,11 +124,15 @@ class SingleType(Strategy):
 
 class MixedType(MixedStrategy):
 
-    def __init__(self, devices, args):
-        super(MixedType, self).__init__(devices, args)
-        self.block_db_size = self.get_block_size()
-        self.system_vgs = lvm.VolumeGroups()
-        self.dbs_needed = len(self.hdds) * self.osds_per_device
+    def __init__(self, args, data_devs, db_devs, wal_devs=[]):
+        super(MixedType, self).__init__(args, data_devs, db_devs, wal_devs)
+        self.block_db_size = self.get_block_db_size()
+        self.block_wal_size = self.get_block_wal_size()
+        self.common_vg = None
+        self.common_wal_vg = None
+        self.dbs_needed = len(self.data_devs) * self.osds_per_device
+        self.wals_needed = self.dbs_needed
+        self.use_large_block_db = self.use_large_block_wal = False
         self.validate_compute()
 
     @staticmethod

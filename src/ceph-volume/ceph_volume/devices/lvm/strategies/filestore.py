@@ -172,7 +172,6 @@ class MixedType(MixedStrategy):
         self.blank_ssds = []
         self.journals_needed = len(self.hdds) * self.osds_per_device
         self.journal_size = get_journal_size(args)
-        self.system_vgs = lvm.VolumeGroups()
         self.validate_compute()
 
     @staticmethod
