@@ -1,5 +1,4 @@
 import pytest
-from ceph_volume.api import lvm as api
 from ceph_volume.devices import lvm
 
 
@@ -100,21 +99,6 @@ class TestPrepare(object):
             lvm.prepare.Prepare(argv=['--filestore', '--data', '/dev/sdfoo']).main()
         expected = '--journal is required when using --filestore'
         assert expected in str(error.value)
-
-
-class TestGetJournalLV(object):
-
-    @pytest.mark.parametrize('arg', ['', '///', None, '/dev/sda1'])
-    def test_no_journal_on_invalid_path(self, monkeypatch, arg):
-        monkeypatch.setattr(api, '_get_lv', lambda **kw: False)
-        prepare = lvm.prepare.Prepare([])
-        assert prepare.get_lv(arg) is None
-
-    def test_no_journal_lv_found(self, monkeypatch):
-        # patch it with 0 so we know we are getting to get_lv
-        monkeypatch.setattr(api, '_get_lv', lambda **kw: 0)
-        prepare = lvm.prepare.Prepare([])
-        assert prepare.get_lv('vg/lv') == 0
 
 
 class TestActivate(object):
