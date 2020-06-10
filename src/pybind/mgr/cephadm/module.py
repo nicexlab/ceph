@@ -1556,7 +1556,7 @@ you may want to run:
     def create_osds(self, drive_group: DriveGroupSpec):
         return self.osd_service.create(drive_group)
 
-    # @trivial_completion
+    @trivial_completion
     def preview_osdspecs(self,
                          osdspec_name: Optional[str] = None,
                          osdspecs: Optional[List[DriveGroupSpec]] = None
@@ -1806,6 +1806,7 @@ you may want to run:
         )
 
         hosts: List[HostPlacementSpec] = ha.place()
+        self.log.debug('Usable hosts: %s' % hosts)
 
         r = False
 
@@ -1818,10 +1819,10 @@ you may want to run:
         did_config = False
 
         add_daemon_hosts: Set[HostPlacementSpec] = ha.add_daemon_hosts(hosts)
-        self.log.debug('hosts that will receive new daemons: %s' % add_daemon_hosts)
+        self.log.debug('Hosts that will receive new daemons: %s' % add_daemon_hosts)
 
         remove_daemon_hosts: Set[orchestrator.DaemonDescription] = ha.remove_daemon_hosts(hosts)
-        self.log.debug('hosts that will loose daemons: %s' % remove_daemon_hosts)
+        self.log.debug('Hosts that will loose daemons: %s' % remove_daemon_hosts)
 
         for host, network, name in add_daemon_hosts:
             if not did_config and config_func:
@@ -2018,8 +2019,6 @@ you may want to run:
         # spec is over.
         # restrict planning on `ONE` spec at a time to keep it simple.
 
-        service_name = spec.service_name()
-
         ha = HostAssignment(
             spec=spec,
             get_hosts_func=self._get_hosts,
@@ -2032,17 +2031,19 @@ you may want to run:
             # The issue here is that generating osdspecs takes time.
             # It needs to be stored in the spec_store
             # TDOD: This needs to be discussed!
-            return self.preview_osdspecs(osdspec_name=service_name)
+            return {
+                'service_name': spec.service_name(),
+                'message': 'OSD previews are handled separately. Please see `ceph orch osd spec --preview`'
+            }
 
         add_daemon_hosts = ha.add_daemon_hosts(hosts)
         remove_daemon_hosts = ha.remove_daemon_hosts(hosts)
 
-        result = {
+        return {
             'service_name': spec.service_name(),
             'add': [hs.hostname for hs in add_daemon_hosts],
             'remove': [d.hostname for d in remove_daemon_hosts]
         }
-        return result
 
     @trivial_completion
     def plan(self, specs: List[GenericSpec]):

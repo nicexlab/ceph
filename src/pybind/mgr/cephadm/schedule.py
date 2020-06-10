@@ -149,13 +149,10 @@ class HostAssignment(object):
 
     # TODO: naming
     def add_daemon_hosts(self, host_pool: List[HostPlacementSpec]) -> Set[HostPlacementSpec]:
-        # TODO: Actually this is about DaemonAssignment rather than HostAssignment..
-        #       Consider to change the name
         hosts_with_daemons = {d.hostname for d in self.daemons}
         _add_daemon_hosts = set()
-        # TODO: figure out which set operation is most suitable to simplify this
         for host in host_pool:
-            if host.name not in hosts_with_daemons:
+            if host.hostname not in hosts_with_daemons:
                 _add_daemon_hosts.add(host)
         return _add_daemon_hosts
 
@@ -165,7 +162,6 @@ class HostAssignment(object):
         #       Consider to change the name
         target_hosts = [h.hostname for h in host_pool]
         _remove_daemon_hosts = set()
-        # TODO: figure out which set operation is most suitable to simplify this
         for d in self.daemons:
             if d.hostname not in target_hosts:
                 _remove_daemon_hosts.add(d)
