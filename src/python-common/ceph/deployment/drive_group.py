@@ -286,6 +286,3 @@ class DriveGroupSpec(ServiceSpec):
             c['wal_devices'] = self.wal_devices.to_json()
         c['service_name'] = self.service_name()
         return c
-
-    def __eq__(self, other):
-        return repr(self) == repr(other)

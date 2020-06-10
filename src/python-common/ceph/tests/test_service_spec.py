@@ -102,3 +102,69 @@ def test_servicespec_map_test(s_type, o_spec, s_id):
     assert servicespec_validate_add(spec) is None
     ServiceSpec.from_json(spec.to_json())
 
+
+@pytest.mark.parametrize("spec1, spec2, eq",
+                         [
+                             (
+                                     ServiceSpec(
+                                         service_type='mon'
+                                     ),
+                                     ServiceSpec(
+                                         service_type='mon'
+                                     ),
+                                     True
+                             ),
+                             (
+                                     ServiceSpec(
+                                         service_type='mon'
+                                     ),
+                                     ServiceSpec(
+                                         service_type='mon',
+                                         service_id='foo'
+                                     ),
+                                     False
+                             ),
+                             # Add service_type='mgr'
+                             (
+                                     ServiceSpec(
+                                         service_type='osd'
+                                     ),
+                                     ServiceSpec(
+                                         service_type='osd',
+                                     ),
+                                     True
+                             ),
+                             (
+                                     ServiceSpec(
+                                         service_type='osd'
+                                     ),
+                                     DriveGroupSpec(),
+                                     True
+                             ),
+                             (
+                                     ServiceSpec(
+                                         service_type='osd'
+                                     ),
+                                     ServiceSpec(
+                                         service_type='osd',
+                                         service_id='foo',
+                                     ),
+                                     False
+                             ),
+                             (
+                                     ServiceSpec(
+                                         service_type='rgw'
+                                     ),
+                                     RGWSpec(),
+                                     True
+                             ),
+
+                             # TODO: ... add more once we have a clear path
+
+                         ])
+def test_spec_hash_eq(spec1: ServiceSpec,
+                      spec2: ServiceSpec,
+                      eq: bool):
+
+    assert (spec1 == spec2) is eq
+    assert (hash(spec1) == hash(spec2)) is eq
