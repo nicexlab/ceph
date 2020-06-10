@@ -40,7 +40,7 @@ from .services.nfs import NFSService
 from .services.osd import RemoveUtil, OSDRemoval, OSDService
 from .services.monitoring import GrafanaService, AlertmanagerService, PrometheusService, \
     NodeExporterService
-from .schedule import HostAssignment
+from .schedule import HostAssignment, HostPlacementSpec
 from .inventory import Inventory, SpecStore, HostCache
 from .upgrade import CEPH_UPGRADE_ORDER, CephadmUpgrade
 from .template import TemplateMgr
@@ -1556,7 +1556,7 @@ you may want to run:
     def create_osds(self, drive_group: DriveGroupSpec):
         return self.osd_service.create(drive_group)
 
-    @trivial_completion
+    # @trivial_completion
     def preview_osdspecs(self,
                          osdspec_name: Optional[str] = None,
                          osdspecs: Optional[List[DriveGroupSpec]] = None
@@ -1798,12 +1798,14 @@ you may want to run:
             # host
             return len(self.cache.networks[host].get(public_network, [])) > 0
 
-        hosts = HostAssignment(
+        ha = HostAssignment(
             spec=spec,
             get_hosts_func=self._get_hosts,
             get_daemons_func=self.cache.get_daemons_by_service,
             filter_new_host=matches_network if daemon_type == 'mon' else None,
-        ).place()
+        )
+
+        hosts: List[HostPlacementSpec] = ha.place()
 
         r = False
 
@@ -1814,42 +1816,44 @@ you may want to run:
 
         # add any?
         did_config = False
-        hosts_with_daemons = {d.hostname for d in daemons}
-        self.log.debug('hosts with daemons: %s' % hosts_with_daemons)
-        for host, network, name in hosts:
-            if host not in hosts_with_daemons:
-                if not did_config and config_func:
-                    config_func(spec)
-                    did_config = True
-                daemon_id = self.get_unique_name(daemon_type, host, daemons,
-                                                 prefix=spec.service_id,
-                                                 forcename=name)
-                self.log.debug('Placing %s.%s on host %s' % (
-                    daemon_type, daemon_id, host))
-                if daemon_type == 'mon':
-                    create_func(daemon_id, host, network)  # type: ignore
-                elif daemon_type in ['nfs', 'iscsi']:
-                    create_func(daemon_id, host, spec)  # type: ignore
-                else:
-                    create_func(daemon_id, host)  # type: ignore
 
-                # add to daemon list so next name(s) will also be unique
-                sd = orchestrator.DaemonDescription(
-                    hostname=host,
-                    daemon_type=daemon_type,
-                    daemon_id=daemon_id,
-                )
-                daemons.append(sd)
-                r = True
+        add_daemon_hosts: Set[HostPlacementSpec] = ha.add_daemon_hosts(hosts)
+        self.log.debug('hosts that will receive new daemons: %s' % add_daemon_hosts)
+
+        remove_daemon_hosts: Set[orchestrator.DaemonDescription] = ha.remove_daemon_hosts(hosts)
+        self.log.debug('hosts that will loose daemons: %s' % remove_daemon_hosts)
+
+        for host, network, name in add_daemon_hosts:
+            if not did_config and config_func:
+                config_func(spec)
+                did_config = True
+            daemon_id = self.get_unique_name(daemon_type, host, daemons,
+                                             prefix=spec.service_id,
+                                             forcename=name)
+            self.log.debug('Placing %s.%s on host %s' % (
+                daemon_type, daemon_id, host))
+            if daemon_type == 'mon':
+                create_func(daemon_id, host, network)  # type: ignore
+            elif daemon_type in ['nfs', 'iscsi']:
+                create_func(daemon_id, host, spec)  # type: ignore
+            else:
+                create_func(daemon_id, host)  # type: ignore
+
+            # add to daemon list so next name(s) will also be unique
+            sd = orchestrator.DaemonDescription(
+                hostname=host,
+                daemon_type=daemon_type,
+                daemon_id=daemon_id,
+            )
+            daemons.append(sd)
+            r = True
 
         # remove any?
-        target_hosts = [h.hostname for h in hosts]
-        for d in daemons:
-            if d.hostname not in target_hosts:
-                # NOTE: we are passing the 'force' flag here, which means
-                # we can delete a mon instances data.
-                self._remove_daemon(d.name(), d.hostname)
-                r = True
+        for d in remove_daemon_hosts:
+            # NOTE: we are passing the 'force' flag here, which means
+            # we can delete a mon instances data.
+            self._remove_daemon(d.name(), d.hostname)
+            r = True
 
         return r
 
@@ -2003,6 +2007,49 @@ you may want to run:
             return self._add_host(cast(HostSpec, spec))
 
         return self._apply_service_spec(cast(ServiceSpec, spec))
+
+    def _plan(self, spec: ServiceSpec):
+
+        # TODO:  When multiple specs are being 'planned' we need to
+        # syntetically simulate the daemon assignment to a host
+        # otherwise the scheduling will not be accurate because
+        # the HostAssignemnt relies on the `hosts_with_daemons`
+        # which is not populated after the planning phase of one
+        # spec is over.
+        # restrict planning on `ONE` spec at a time to keep it simple.
+
+        service_name = spec.service_name()
+
+        ha = HostAssignment(
+            spec=spec,
+            get_hosts_func=self._get_hosts,
+            get_daemons_func=self.cache.get_daemons_by_service,
+        )
+        ha.validate()
+        hosts = ha.place()
+
+        if spec.service_type == 'osd':
+            # The issue here is that generating osdspecs takes time.
+            # It needs to be stored in the spec_store
+            # TDOD: This needs to be discussed!
+            return self.preview_osdspecs(osdspec_name=service_name)
+
+        add_daemon_hosts = ha.add_daemon_hosts(hosts)
+        remove_daemon_hosts = ha.remove_daemon_hosts(hosts)
+
+        result = {
+            'service_name': spec.service_name(),
+            'add': [hs.hostname for hs in add_daemon_hosts],
+            'remove': [d.hostname for d in remove_daemon_hosts]
+        }
+        return result
+
+    @trivial_completion
+    def plan(self, specs: List[GenericSpec]):
+        results = []
+        for spec in specs:
+            results.append(self._plan(spec))
+        return results
 
     def _apply_service_spec(self, spec: ServiceSpec) -> str:
         if spec.placement.is_empty():

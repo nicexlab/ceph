@@ -892,6 +892,12 @@ class Orchestrator(object):
             completion = completion.then(next)
         return completion
 
+    def plan(self, spec: List["GenericSpec"]):
+        """
+        TOOD: docstring
+        """
+        raise NotImplementedError()
+
     def remove_daemons(self, names):
         # type: (List[str]) -> Completion
         """
