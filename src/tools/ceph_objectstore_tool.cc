@@ -407,6 +407,7 @@ int file_fd = fd_none;
 bool debug;
 bool force = false;
 bool no_superblock = false;
+bool no_compact = false;
 
 super_header sh;
 
@@ -723,7 +724,7 @@ int do_trim_pg_log(ObjectStore *store, const coll_t &coll,
 
   // compact the db since we just removed a bunch of data
   cerr << "Finished trimming, now compacting..." << std::endl;
-  if (!dry_run)
+  if (!dry_run || !no_compact)
     store->compact();
   return 0;
 }
@@ -3234,6 +3235,7 @@ int main(int argc, char **argv)
     ("debug", "Enable diagnostic output to stderr")
     ("no-mon-config", "Do not contact mons for config")
     ("no-superblock", "Do not read superblock")
+    ("no-compact", "Do not compact the kv-store after trimming a PG log. Useful for when trimming multiple PGs in sequence.")
     ("force", "Ignore some types of errors and proceed with operation - USE WITH CAUTION: CORRUPTION POSSIBLE NOW OR IN THE FUTURE")
     ("skip-journal-replay", "Disable journal replay")
     ("skip-mount-omap", "Disable mounting of omap")
@@ -3289,6 +3291,8 @@ int main(int argc, char **argv)
   force = (vm.count("force") > 0);
 
   no_superblock = (vm.count("no-superblock") > 0);
+
+  no_compact = (vm.count("no-compact") > 0);
 
   if (vm.count("namespace"))
     nspace = argnspace;
