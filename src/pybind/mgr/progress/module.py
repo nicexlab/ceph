@@ -29,12 +29,13 @@ class Event(object):
     objects (osds, pools) this relates to.
     """
 
-    def __init__(self, message, refs, started_at=None):
+    def __init__(self, message, refs, started_at=None, add_to_ceph_s):
         # type: (str, List[str], Optional[float]) -> None
         self._message = message
         self._refs = refs
         self.started_at = started_at if started_at else time.time()
         self.id = None  # type: Optional[str]
+        self._add_to_ceph_s = add_to_ceph_s
 
     def _refresh(self):
         global _module
@@ -42,7 +43,7 @@ class Event(object):
         _module.log.debug('refreshing mgr for %s (%s) at %f' % (self.id, self._message,
                                                                 self.progress))
         _module.update_progress_event(
-            self.id, self.twoline_progress(6), self.progress)
+            self.id, self.twoline_progress(6), self.progress, self.add_to_ceph_s)
 
     @property
     def message(self):
