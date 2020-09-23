@@ -676,7 +676,7 @@ ceph_update_progress_event(BaseMgrModule *self, PyObject *args)
   char *desc = nullptr;
   float progress = 0.0;
   bool add_to_ceph_s = false;
-  if (!PyArg_ParseTuple(args, "ssf:ceph_update_progress_event",
+  if (!PyArg_ParseTuple(args, "ssfb:ceph_update_progress_event",
 			&evid, &desc, &progress, &add_to_ceph_s)) {
     return nullptr;
   }
