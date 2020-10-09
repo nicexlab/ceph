@@ -1,4 +1,4 @@
-@use './src/styles/defaults/bootstrap-defaults' as bd;
+@use './src/styles/vendor/variables' as vv;
 
 p {
   font-family: monospace;
@@ -27,15 +27,15 @@ p {
   }
 
   .err {
-    color: bd.$danger;
+    color: vv.$danger;
   }
 
   .warn {
-    color: bd.$warning;
+    color: vv.$warning;
   }
 
   .info {
-    color: bd.$info;
+    color: vv.$info;
   }
 }
 
