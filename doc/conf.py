@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 import sys
 import os
 
@@ -161,3 +162,16 @@ for c in pybinds:
     pybind = os.path.join(top_level, 'src', c)
     if pybind not in sys.path:
         sys.path.insert(0, pybind)
+
+def generate_api_docs(app):
+    if os.environ.get('READTHEDOCS', None) != 'True':
+        return
+
+    try:
+        os.environ['vdir'] = '/usr'
+        retcode = subprocess.call(os.path.join(top_level, 'admin', 'build-doc'))
+    except OSError as e:
+        sys.stderr.write("bulid-doc failed: %s" % e)
+
+def setup(app):
+    app.connect("builder-inited", generate_api_docs)

@@ -6,44 +6,46 @@ TOPDIR=`pwd`
 
 install -d -m0755 build-doc
 
-if command -v dpkg >/dev/null; then
-    packages=`cat ${TOPDIR}/doc_deps.deb.txt`
-    for package in $packages; do
-    if [ "$(dpkg --status -- $package 2>&1 | sed -n 's/^Status: //p')" != "install ok installed" ]; then
-        # add a space after old values
-        missing="${missing:+$missing }$package"
-    fi
-    done
-    if [ -n "$missing" ]; then
-        echo "$0: missing required packages, please install them:" 1>&2
-        echo "sudo apt-get install -o APT::Install-Recommends=true $missing" 1>&2
-        exit 1
-    fi
-elif command -v yum >/dev/null; then
-    for package in ant ditaa doxygen libxslt-devel libxml2-devel graphviz python3-devel python3-pip python3-virtualenv python3-Cython; do
-	if ! rpm -q --whatprovides $package >/dev/null ; then
-		missing="${missing:+$missing }$package"
-	fi
-    done
-    if [ -n "$missing" ]; then
-        echo "$0: missing required packages, please install them:" 1>&2
-        echo "yum install $missing"
-        exit 1
-    fi
-else
-    for command in dot virtualenv doxygen ant ditaa cython; do
-        if ! command -v "$command" > /dev/null; then
-            # add a space after old values
-            missing="${missing:+$missing }$command"
+if [ -z "$READTHEDOCS" ]; then
+
+    if command -v dpkg >/dev/null; then
+        packages=`cat ${TOPDIR}/doc_deps.deb.txt`
+        for package in $packages; do
+            if [ "$(dpkg --status -- $package 2>&1 | sed -n 's/^Status: //p')" != "install ok installed" ]; then
+                # add a space after old values
+                missing="${missing:+$missing }$package"
+            fi
+        done
+        if [ -n "$missing" ]; then
+            echo "$0: missing required packages, please install them:" 1>&2
+            echo "sudo apt-get install -o APT::Install-Recommends=true $missing" 1>&2
+            exit 1
         fi
-    done
-    if [ -n "$missing" ]; then
-        echo "$0: missing required command, please install them:" 1>&2
-        echo "$missing" 1>&2
-	exit 1
+    elif command -v yum >/dev/null; then
+        for package in ant ditaa doxygen libxslt-devel libxml2-devel graphviz python3-devel python3-pip python3-virtualenv python3-Cython; do
+	        if ! rpm -q --whatprovides $package >/dev/null ; then
+		        missing="${missing:+$missing }$package"
+	        fi
+        done
+        if [ -n "$missing" ]; then
+            echo "$0: missing required packages, please install them:" 1>&2
+            echo "yum install $missing"
+            exit 1
+        fi
+    else
+        for command in dot virtualenv doxygen ant ditaa cython; do
+            if ! command -v "$command" > /dev/null; then
+                # add a space after old values
+                missing="${missing:+$missing }$command"
+            fi
+        done
+        if [ -n "$missing" ]; then
+            echo "$0: missing required command, please install them:" 1>&2
+            echo "$missing" 1>&2
+	        exit 1
+        fi
     fi
 fi
-
 # Don't enable -e until after running all the potentially-erroring checks
 # for availability of commands
 set -e
