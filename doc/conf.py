@@ -144,19 +144,9 @@ class Mock(object):
 
 sys.modules['ceph_module'] = Mock()
 
-if build_with_rtd:
-    exclude_patterns += ['**/api/*',
-                         '**/api.rst']
-    autodoc_mock_imports = ['cephfs',
-                            'rados',
-                            'rbd',
-                            'ceph']
-    pybinds = ['pybind/mgr',
-               'python-common']
-else:
-    pybinds = ['pybind',
-               'pybind/mgr',
-               'python-common']
+pybinds = ['pybind',
+           'pybind/mgr',
+           'python-common']
 
 for c in pybinds:
     pybind = os.path.join(top_level, 'src', c)

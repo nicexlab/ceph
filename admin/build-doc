@@ -121,6 +121,8 @@ for bind in rados rbd cephfs rgw; do
     fi
 done
 
+[ ! -z "$READTHEDOCS" ] && exit 0
+
 if [ -z "$@" ]; then
     sphinx_targets="html man"
 else
