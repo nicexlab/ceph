@@ -240,6 +240,16 @@ struct crush_bucket {
 
 /** @ingroup API
  *
+ * Id and timestamp of layer.
+ *
+ */
+struct layer_time {
+  __s32 id; /*!< id of layer */
+  double timestamp;     /*!< create time of layer */
+};
+
+/** @ingroup API
+ *
  * Replacement weights for each item in a bucket. The size of the
  * array must be exactly the size of the straw2 bucket, just as the
  * item_weights array.

@@ -2954,6 +2954,13 @@ bool OSDMonitor::prepare_pg_created(MonOpRequestRef op)
     dout(1) << __func__ << " ignoring stats from non-active osd." << dendl;
     return false;
   }
+
+  if(osdmap.layers.size() > 0) {
+    osdmap.pg_layer[m->pgid] = osdmap.layers.back().id;
+    dout(10) << "pg_create test: " << m->pgid << "pg_layer: " <<  osdmap.pg_layer[m->pgid] << dendl;
+  }
+
+
   pending_created_pgs.push_back(m->pgid);
   return true;
 }
@@ -6434,6 +6441,23 @@ int OSDMonitor::prepare_new_pool(string& name, uint64_t auid,
   pi->cache_min_flush_age = g_conf->osd_pool_default_cache_min_flush_age;
   pi->cache_min_evict_age = g_conf->osd_pool_default_cache_min_evict_age;
   pending_inc.new_pool_names[pool] = name;
+
+  // 创建 3 个 layer 进行模拟
+  if(osdmap.layers.size() == 0) {
+    for(int i = 0; i < 3; i++) {
+      Layer new_layer(1, 16);
+      utime_t add_time;
+      add_time.set_from_double(180 * i);
+      new_layer.time_stamp = ceph_clock_now() + add_time;
+      new_layer.init_pg_num = 16;
+      new_layer.id = -(101 + i * 2);
+      osdmap.layers.push_back(new_layer);
+    }
+    *ss << "size: " << osdmap.layers.size() << " // ";
+    for(int i = 0; i < osdmap.layers.size(); i++) {
+      *ss << "layer timestamp: " << osdmap.layers[i].time_stamp << "    " << osdmap.layers[i].id << "   " << osdmap.layers[i].init_pg_num << " // ";
+    }
+  }
   return 0;
 }
 

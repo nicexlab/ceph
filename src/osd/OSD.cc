@@ -9160,6 +9160,8 @@ void OSD::handle_pg_create(OpRequestRef op)
 
   dout(10) << "handle_pg_create " << *m << dendl;
 
+  // ldout(cct, 1) << "pg_create test " << cct->layers.back().id << dendl;
+
   if (!require_mon_peer(op->get_req())) {
     return;
   }
@@ -9170,10 +9172,20 @@ void OSD::handle_pg_create(OpRequestRef op)
   op->mark_started();
 
   map<pg_t,utime_t>::const_iterator ci = m->ctimes.begin();
+
+  map<pg_t,uint64_t> pg_layer;
+
   for (map<pg_t,pg_create_t>::const_iterator p = m->mkpg.begin();
        p != m->mkpg.end();
        ++p, ++ci) {
     assert(ci != m->ctimes.end() && ci->first == p->first);
+
+    // dout(10) << "size of layers " << cct->layers.size() << dendl;
+    // if(cct->layers.size() > 0) {
+    //   dout(10) << "pg_create test " << cct->layers.back().id << "  " << ci->first << " time " << ci->second << dendl;
+    //   //pg_layer[ci->first] = cct->layers.back().id;
+    // } 
+
     epoch_t created = p->second.created;
     if (p->second.split_bits) // Skip split pgs
       continue;

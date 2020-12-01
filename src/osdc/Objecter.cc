@@ -2786,6 +2786,8 @@ int Objecter::_calc_target(op_target_t *t, Connection *con, bool any_change)
 		<< (is_read ? " is_read" : "")
 		<< (is_write ? " is_write" : "")
 		<< dendl;
+  
+
 
   const pg_pool_t *pi = osdmap->get_pg_pool(t->base_oloc.pool);
   if (!pi) {
@@ -2820,6 +2822,22 @@ int Objecter::_calc_target(op_target_t *t, Connection *con, bool any_change)
     }
   }
 
+  // test add
+  utime_t current_time = ceph_clock_now();
+
+
+  std::cout << "object test " << osdmap << " " << *osdmap << std::endl;
+  std::cout << "pg_layer " << osdmap->pg_layer.size() << std::endl; 
+  
+  
+  osdmap->object_create_time.insert(pair<string, utime_t>(t->target_oid.name, current_time));
+
+  std::cout << "size of create_time: " << osdmap->object_create_time.size() << std::endl;  
+  for (auto &object_time : osdmap->object_create_time) {
+    std::cout << "time_stamp " << object_time.first << "  " << object_time.second << "  " << (double)object_time.second << std::endl; 
+  }
+ 
+
   pg_t pgid;
   if (t->precalc_pgid) {
     assert(t->flags & CEPH_OSD_FLAG_IGNORE_OVERLAY);
@@ -2834,6 +2852,10 @@ int Objecter::_calc_target(op_target_t *t, Connection *con, bool any_change)
       return RECALC_OP_TARGET_POOL_DNE;
     }
   }
+  std::cout << __func__ << " target " << t->target_oid << " "
+		<< t->target_oloc << " -> pgid " << pgid << std::endl;
+  std::cout << __func__ << "  target pi " << pi
+		<< " pg_num " << pi->get_pg_num() << std::endl;
   ldout(cct,20) << __func__ << " target " << t->target_oid << " "
 		<< t->target_oloc << " -> pgid " << pgid << dendl;
   ldout(cct,30) << __func__ << "  target pi " << pi
@@ -2845,8 +2867,8 @@ int Objecter::_calc_target(op_target_t *t, Connection *con, bool any_change)
   unsigned pg_num = pi->get_pg_num();
   int up_primary, acting_primary;
   vector<int> up, acting;
-  osdmap->pg_to_up_acting_osds(pgid, &up, &up_primary,
-			       &acting, &acting_primary);
+  osdmap->pg_to_up_acting_osds_mapx(pgid, &up, &up_primary,
+			       &acting, &acting_primary, osdmap->object_create_time[t->target_oid.name]);
   bool sort_bitwise = osdmap->test_flag(CEPH_OSDMAP_SORTBITWISE);
   bool recovery_deletes = osdmap->test_flag(CEPH_OSDMAP_RECOVERY_DELETES);
   unsigned prev_seed = ceph_stable_mod(pgid.ps(), t->pg_num, t->pg_num_mask);
@@ -2904,6 +2926,26 @@ int Objecter::_calc_target(op_target_t *t, Connection *con, bool any_change)
     osdmap->get_primary_shard(
       pg_t(ceph_stable_mod(pgid.ps(), t->pg_num, t->pg_num_mask), pgid.pool()),
       &t->actual_pgid);
+    // test add
+    uint32_t cumulative_pg_num = 0;
+    int latest_layer_id = 2;
+    for(; latest_layer_id < osdmap->layers.size(); latest_layer_id++) {
+      if(current_time < osdmap->layers[latest_layer_id].time_stamp) {
+        break;
+      }
+      cumulative_pg_num += osdmap->layers[latest_layer_id].init_pg_num;
+    }
+    latest_layer_id--;
+    cumulative_pg_num -= osdmap->layers[latest_layer_id].init_pg_num;
+    uint32_t old_pg_id = t->actual_pgid.pgid.m_seed;
+    std::cout << __func__ << " "
+		   << " old pg id " << old_pg_id << std::endl;
+    old_pg_id = old_pg_id % osdmap->layers[latest_layer_id].init_pg_num + cumulative_pg_num;
+    std::cout << __func__ << " "
+       << "cumulative: " << cumulative_pg_num
+       << " latest_layer_id:" << latest_layer_id
+		   << " mapx pg id " << old_pg_id << std::endl;
+
     t->sort_bitwise = sort_bitwise;
     t->recovery_deletes = recovery_deletes;
     ldout(cct, 10) << __func__ << " "
@@ -4538,12 +4580,10 @@ void Objecter::_dump_ops(const OSDSession *s, Formatter *fmt)
        p != s->ops.end();
        ++p) {
     Op *op = p->second;
-    auto age = std::chrono::duration<double>(mono_clock::now() - op->stamp);
     fmt->open_object_section("op");
     fmt->dump_unsigned("tid", op->tid);
     op->target.dump(fmt);
     fmt->dump_stream("last_sent") << op->stamp;
-    fmt->dump_float("age", age.count());
     fmt->dump_int("attempts", op->attempts);
     fmt->dump_stream("snapid") << op->snapid;
     fmt->dump_stream("snap_context") << op->snapc;

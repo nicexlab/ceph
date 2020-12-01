@@ -2050,6 +2050,11 @@ int OSDMap::map_to_pg(
     ps = pool->hash_key(key, nspace);
   else
     ps = pool->hash_key(name, nspace);
+  
+  // test add
+  // mapx impl
+
+  
   *pg = pg_t(ps, poolid);
   return 0;
 }
@@ -2109,14 +2114,142 @@ void OSDMap::_pg_to_raw_osds(
   ps_t *ppps) const
 {
   // map to osds[]
+
   ps_t pps = pool.raw_pg_to_pps(pg);  // placement ps
+
+  int mod_result = ceph_stable_mod(pg.ps(), pool.get_pgp_num(), pool.get_pgp_num_mask());
+  std::cout << __func__
+    << " pg: " << pg
+    << " pg s: " << hex << pg.ps() << "  " << dec << pg.ps()
+    << " pps: " << hex <<  pps << dec 
+    << " mod result: " << mod_result
+    << " pg: " << pool.get_pg_num() << " " << pool.get_pg_num_mask()
+    << " pgp: " << pool.get_pgp_num() << " " << pool.get_pgp_num_mask() << std::endl;
   unsigned size = pool.get_size();
+
+  // test add
+  utime_t current_time = ceph_clock_now();
+  uint32_t cumulative_pg_num = 0;
+  int latest_layer_id = 2;
+  for(; latest_layer_id < layers.size(); latest_layer_id++) {
+    if(current_time < layers[latest_layer_id].time_stamp) {
+      break;
+    }
+    cumulative_pg_num += layers[latest_layer_id].init_pg_num;
+  }
+  latest_layer_id--;
+  cumulative_pg_num -= layers[latest_layer_id].init_pg_num;
+  uint32_t new_pg_id = mod_result;
+
+  new_pg_id = new_pg_id % layers[latest_layer_id].init_pg_num + cumulative_pg_num;
+  ps_t new_pps = crush_hash32_2(CRUSH_HASH_RJENKINS1,
+		     new_pg_id,
+		     pg.pool());
+  std::cout << __func__ << " "
+      << "cumulative: " << cumulative_pg_num
+      << " latest_layer_id:" << latest_layer_id
+      << " flag: " << pool.flags
+      << " mapx pg id " << new_pg_id 
+      << " new_pps: " << hex << new_pps << dec << " decimal :" << new_pps << std::endl;
+  
 
   // what crush rule?
   int ruleno = crush->find_rule(pool.get_crush_rule(), pool.get_type(), size);
   if (ruleno >= 0)
     crush->do_rule(ruleno, pps, *osds, size, osd_weight, pg.pool());
 
+
+  for(int i = 0; i < osds->size(); ++i) {
+    std::cout << __func__ << " "
+        << "osds[" << i << "]: " << osds->at(i) << std::endl;
+  }
+  _remove_nonexistent_osds(pool, *osds);
+
+  if (ppps)
+    *ppps = pps;
+}
+
+void OSDMap::_pg_to_raw_osds_mapx(
+  const pg_pool_t& pool, pg_t pg,
+  vector<int> *osds,
+  ps_t *ppps, utime_t object_time) const
+{
+  // map to osds[]
+
+  ps_t pps = pool.raw_pg_to_pps(pg);  // placement ps
+
+  int mod_result = ceph_stable_mod(pg.ps(), pool.get_pgp_num(), pool.get_pgp_num_mask());
+  std::cout << __func__
+    << " pg: " << pg
+    << " pg s: " << hex << pg.ps() << "  " << dec << pg.ps()
+    << " pps: " << hex <<  pps << dec 
+    << " mod result: " << mod_result
+    << " pg: " << pool.get_pg_num() << " " << pool.get_pg_num_mask()
+    << " pgp: " << pool.get_pgp_num() << " " << pool.get_pgp_num_mask() 
+    << " object_time: " << object_time << std::endl;
+  unsigned size = pool.get_size();
+
+  // test add
+  //object_time = ceph_clock_now();
+  uint32_t cumulative_pg_num = 0;
+  int latest_layer_id = 2;
+  for(; latest_layer_id < layers.size(); latest_layer_id++) {
+    if(object_time < layers[latest_layer_id].time_stamp) {
+      break;
+    }
+    cumulative_pg_num += layers[latest_layer_id].init_pg_num;
+  }
+  latest_layer_id--;
+  cumulative_pg_num -= layers[latest_layer_id].init_pg_num;
+  uint32_t new_pg_id = mod_result % layers[latest_layer_id].init_pg_num + cumulative_pg_num;
+  
+  int layer_id;
+  for(auto &current_pg : pg_layer) {
+    std::cout << "pg_layer: " << current_pg.first << "  " << current_pg.second << std::endl;
+    if(pg.pool() == current_pg.first.pool() && current_pg.first.ps() == new_pg_id) {
+      layer_id = current_pg.second;
+      break;
+    }
+  }
+  utime_t pg_time;
+  for(auto &layer : layers) {
+    if(layer.id == layer_id) {
+      pg_time = layer.time_stamp;
+      break;
+    }
+  }
+  int chosen_layer;
+  for(int i = layers.size() - 1; i >= 0; i--) {
+    if(pg_time >= layers[i].time_stamp) {
+      chosen_layer = layers[i].id;
+      break;
+    }
+  }
+
+
+  ps_t new_pps = crush_hash32_2(CRUSH_HASH_RJENKINS1,
+		     new_pg_id,
+		     pg.pool());
+  std::cout << __func__ << " "
+      << "cumulative: " << cumulative_pg_num
+      << " latest_layer_id:" << latest_layer_id
+      << " flag: " << pool.flags
+      << " mapx pg id " << new_pg_id 
+      << " new_pps: " << hex << new_pps << dec << " decimal :" << new_pps 
+      << " pg_time: " << pg_time 
+      << " chosen layer: " << chosen_layer << std::endl;
+  
+
+  // what crush rule?
+  int ruleno = crush->find_rule(pool.get_crush_rule(), pool.get_type(), size);
+  if (ruleno >= 0)
+    crush->do_rule_mapx(ruleno, pps, *osds, size, osd_weight, pg.pool(), chosen_layer);
+
+
+  for(int i = 0; i < osds->size(); ++i) {
+    std::cout << __func__ << " "
+        << "osds[" << i << "]: " << osds->at(i) << std::endl;
+  }
   _remove_nonexistent_osds(pool, *osds);
 
   if (ppps)
@@ -2387,6 +2520,62 @@ void OSDMap::_pg_to_up_acting_osds(
     *acting_primary = _acting_primary;
 }
 
+void OSDMap::_pg_to_up_acting_osds_mapx(
+  const pg_t& pg, vector<int> *up, int *up_primary,
+  vector<int> *acting, int *acting_primary, utime_t object_time,
+  bool raw_pg_to_pg)
+{
+  // test add
+  //utime_t current_time = ceph_clock_now();
+  //object_create_time["123"] = current_time;
+  //object_create_time.insert(pair<string, utime_t>("123", current_time));
+
+
+  const pg_pool_t *pool = get_pg_pool(pg.pool());
+  if (!pool ||
+      (!raw_pg_to_pg && pg.ps() >= pool->get_pg_num())) {
+    if (up)
+      up->clear();
+    if (up_primary)
+      *up_primary = -1;
+    if (acting)
+      acting->clear();
+    if (acting_primary)
+      *acting_primary = -1;
+    return;
+  }
+  vector<int> raw;
+  vector<int> _up;
+  vector<int> _acting;
+  int _up_primary;
+  int _acting_primary;
+  ps_t pps;
+  _get_temp_osds(*pool, pg, &_acting, &_acting_primary);
+  if (_acting.empty() || up || up_primary) {
+    _pg_to_raw_osds_mapx(*pool, pg, &raw, &pps, object_time);
+    _apply_upmap(*pool, pg, &raw);
+    _raw_to_up_osds(*pool, raw, &_up);
+    _up_primary = _pick_primary(_up);
+    _apply_primary_affinity(pps, *pool, &_up, &_up_primary);
+    if (_acting.empty()) {
+      _acting = _up;
+      if (_acting_primary == -1) {
+        _acting_primary = _up_primary;
+      }
+    }
+  
+    if (up)
+      up->swap(_up);
+    if (up_primary)
+      *up_primary = _up_primary;
+  }
+
+  if (acting)
+    acting->swap(_acting);
+  if (acting_primary)
+    *acting_primary = _acting_primary;
+}
+
 int OSDMap::calc_pg_rank(int osd, const vector<int>& acting, int nrep)
 {
   if (!nrep)
@@ -2519,6 +2708,10 @@ void OSDMap::encode_classic(bufferlist& bl, uint64_t features) const
   ::encode(pools, bl, features);
   ::encode(pool_name, bl);
   ::encode(pool_max, bl);
+  // test add
+  ::encode(layers, bl);
+  ::encode(object_create_time, bl);
+  ::encode(pg_layer, bl);
 
   ::encode(flags, bl);
 
@@ -2592,6 +2785,10 @@ void OSDMap::encode(bufferlist& bl, uint64_t features) const
     ::encode(pools, bl, features);
     ::encode(pool_name, bl);
     ::encode(pool_max, bl);
+    // test add
+    ::encode(layers, bl);
+    ::encode(object_create_time, bl);
+    ::encode(pg_layer, bl);
 
     if (v < 4) {
       decltype(flags) f = flags;
@@ -2866,6 +3063,11 @@ void OSDMap::decode(bufferlist::iterator& bl)
     ::decode(pools, bl);
     ::decode(pool_name, bl);
     ::decode(pool_max, bl);
+
+    // test add
+    ::decode(layers, bl);
+    ::decode(object_create_time, bl);
+    ::decode(pg_layer, bl);
 
     ::decode(flags, bl);
 

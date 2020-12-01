@@ -31,6 +31,7 @@ using namespace std;
 
 #include "osd/OSDMap.h"
 #include "osd/OSDMapMapping.h"
+#include "osd/osd_types.h"
 
 #include "CreatingPGs.h"
 #include "PaxosService.h"
@@ -143,6 +144,8 @@ public:
   map<int,utime_t>    down_pending_out;  // osd down -> out
 
   map<int,double> osd_weight;
+
+  std::map<pg_t, uint64_t> pg_layer;
 
   using osdmap_key_t = std::pair<version_t, uint64_t>;
   using osdmap_cache_t = SimpleLRU<osdmap_key_t,

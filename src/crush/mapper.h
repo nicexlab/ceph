@@ -78,6 +78,12 @@ extern int crush_do_rule(const struct crush_map *map,
 			 const __u32 *weights, int weight_max,
 			 void *cwin, const struct crush_choose_arg *choose_args);
 
+extern int crush_do_rule_mapx(const struct crush_map *map,
+			 int ruleno,
+			 int x, int *result, int result_max,
+			 const __u32 *weights, int weight_max,
+			 void *cwin, const struct crush_choose_arg *choose_args, int chosen_layer);
+
 /* Returns the exact amount of workspace that will need to be used
    for a given combination of crush_map and result_max. The caller can
    then allocate this much on its own, either on the stack, in a

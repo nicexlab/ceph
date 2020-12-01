@@ -355,6 +355,43 @@ struct old_pg_t {
 };
 WRITE_CLASS_ENCODER(old_pg_t)
 
+// Layer
+struct Layer {
+  public:
+    int id;
+    utime_t time_stamp;
+    uint32_t init_pg_num;
+
+    Layer() {}
+
+    Layer(int _id, uint32_t _init_pg_num) {
+      id = id;
+      init_pg_num = _init_pg_num;
+    }
+
+    Layer(int _id, utime_t _time_stamp, uint32_t _init_pg_num) :
+      id(_id), time_stamp(_time_stamp), init_pg_num(_init_pg_num) {}
+
+    Layer(const Layer& l) : 
+      id(l.id), time_stamp(l.time_stamp), init_pg_num(l.init_pg_num) {}
+
+    void encode(bufferlist& bl) const {
+    //__u8 v = 1;
+    //::encode(v, bl);
+    ::encode(id, bl);
+    ::encode(time_stamp, bl);
+    ::encode(init_pg_num, bl);
+  }
+  void decode(bufferlist::iterator& bl) {
+    //__u8 v;
+    //::decode(v, bl);
+    ::decode(id, bl);
+    ::decode(time_stamp, bl);
+    ::decode(init_pg_num, bl);
+  }
+};
+WRITE_CLASS_ENCODER(Layer)
+
 // placement group id
 struct pg_t {
   uint64_t m_pool;

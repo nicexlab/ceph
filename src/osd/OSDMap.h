@@ -355,6 +355,9 @@ WRITE_CLASS_ENCODER(PGTempMap)
 class OSDMap {
 public:
   MEMPOOL_CLASS_HELPERS();
+  mempool::osdmap::map<pg_t, int> pg_layer;
+  mempool::osdmap::map<string, utime_t> object_create_time;
+  mempool::osdmap::vector<Layer> layers;
 
   class Incremental {
   public:
@@ -1105,6 +1108,10 @@ private:
     const pg_pool_t& pool, pg_t pg,
     vector<int> *osds,
     ps_t *ppps) const;
+  void _pg_to_raw_osds_mapx(
+    const pg_pool_t& pool, pg_t pg,
+    vector<int> *osds,
+    ps_t *ppps, utime_t object_time) const;
   int _pick_primary(const vector<int>& osds) const;
   void _remove_nonexistent_osds(const pg_pool_t& pool, vector<int>& osds) const;
 
@@ -1134,7 +1141,9 @@ private:
   void _pg_to_up_acting_osds(const pg_t& pg, vector<int> *up, int *up_primary,
                              vector<int> *acting, int *acting_primary,
 			     bool raw_pg_to_pg = true) const;
-
+  void _pg_to_up_acting_osds_mapx(const pg_t& pg, vector<int> *up, int *up_primary,
+                             vector<int> *acting, int *acting_primary, utime_t object_time,
+			     bool raw_pg_to_pg = true);
 public:
   /***
    * This is suitable only for looking at raw CRUSH outputs. It skips
@@ -1165,6 +1174,10 @@ public:
    * set as pg_temp.
    * Each of these pointers must be non-NULL.
    */
+  void pg_to_up_acting_osds_mapx(pg_t pg, vector<int> *up, int *up_primary,
+                            vector<int> *acting, int *acting_primary, utime_t object_time) {
+    _pg_to_up_acting_osds_mapx(pg, up, up_primary, acting, acting_primary, object_time);
+  }
   void pg_to_up_acting_osds(pg_t pg, vector<int> *up, int *up_primary,
                             vector<int> *acting, int *acting_primary) const {
     _pg_to_up_acting_osds(pg, up, up_primary, acting, acting_primary);

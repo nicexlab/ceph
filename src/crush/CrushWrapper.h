@@ -1515,8 +1515,34 @@ public:
     crush_init_workspace(crush, work);
     crush_choose_arg_map arg_map = choose_args_get_with_fallback(
       choose_args_index);
+    std::cout << __func__ 
+      << " crush map: " << crush << std::endl;
     int numrep = crush_do_rule(crush, rule, x, rawout, maxout, &weight[0],
 			       weight.size(), work, arg_map.args);
+    if (numrep < 0)
+      numrep = 0;
+    out.resize(numrep);
+    for (int i=0; i<numrep; i++)
+      out[i] = rawout[i];
+  }
+
+  template<typename WeightVector>
+  void do_rule_mapx(int rule, int x, vector<int>& out, int maxout,
+	       const WeightVector& weight,
+	       uint64_t choose_args_index, int chosen_layer) const {
+    int rawout[maxout];
+    char work[crush_work_size(crush, maxout)];
+    crush_init_workspace(crush, work);
+    crush_choose_arg_map arg_map = choose_args_get_with_fallback(
+      choose_args_index);
+
+    // test add
+
+
+    std::cout << __func__ 
+      << " crush map: " << chosen_layer << std::endl;
+    int numrep = crush_do_rule_mapx(crush, rule, x, rawout, maxout, &weight[0],
+			       weight.size(), work, arg_map.args, chosen_layer);
     if (numrep < 0)
       numrep = 0;
     out.resize(numrep);
